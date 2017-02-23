@@ -1,20 +1,23 @@
 #include "synth.h"
 #include "main.h"
+#include "lut_lfo.h"
 
 // Everything sucks
 mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format) {
 	s16 *target = dest;
 	float flt = 0;
 	float pitchlfo = 1.0f;
-
+	uint32_t lfo_v;
+	u16 * t;
+	bool plotting;
+	
 	int len = length;
-	int i = 0;
 	
 	if (mode == CUTOFF) {
-		flt = (filter + track) * (1 - ((1 - lfo) * intlfo));
+		flt = (filter + track) * (1 - ((1 - ((float)lfo_acc / 4294967295.0)) * intlfo));
 		pitchlfo = 1.0f;
 	} else if (mode == PITCH) {
-		pitchlfo = (1 - ((1 - lfo) * intlfo));
+		pitchlfo = (1 - ((1 - ((float)lfo_acc / 4294967295.0)) * intlfo));
 		flt = filter + track;
 	}
 	if (flt > 0.99f) flt = 0.99f;
@@ -35,27 +38,34 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 			*target++ = buf1;
 			
 			// Debug: Plot waveform
-			if (draw && (len > length / 2)) {
-				u16 * t = bgGetGfxPtr(bg2s) + i - (((u16)buf1 / 512) * 256) + (256 * 128) + 22;
+			if (plotting && (i < 200)) {
+				t = bgGetGfxPtr(bg2s) + i - (((u16)buf1 / 512) * 256) + (256 * 128) + 22;
 				*t = (u16)0xFFFF;
 				i++;
 			}
 			
 			// Oscillator
 			osc -= (pitch * pitchmod * pitchlfo * pow(2, octave));
-			if (osc < 0.1f) osc = 300.0f;
-			
-			// LFO
-			lfo -= ratelfo;
-			if (lfo < 0.01f) lfo = 1.0f;
-			
+			if (osc < 0.1f) {
+				if (plot_request == true) {
+					i = 0;
+					plot_request = false;
+					plotting = true;
+				}
+				osc = 300.0f;
+			}
 		} else {
 			// STFU
 			*target++ = 0;
 		}
+		
+		// LFO
+		lfo_v = lut_lfo[lfo_rate];
+		if (lfo_acc < lfo_v)
+			lfo_acc = 0xFFFFFFFF;
+		else
+			lfo_acc -= lfo_v;
 	}
-	
-	draw = false;
 	
 	return length;
 }

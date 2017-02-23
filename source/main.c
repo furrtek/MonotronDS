@@ -6,13 +6,10 @@
 #include "init.h"
 #include "synth.h"
 
-#define CONTROLS_COUNT 6
-#define KNOB_SIZE 32
-
 const control_t controls[CONTROLS_COUNT] = {
 	{CTRLT_SWITCH, 3, 80, 16, 32, &mode},
 	{CTRLT_KNOB, 82, 71, 32, 32, &pitch},
-	{CTRLT_KNOB, 114, 71, 32, 32, &ratelfo},
+	{CTRLT_KNOB_LED, 114, 71, 32, 32, &lfo_rate},
 	{CTRLT_KNOB, 152, 71, 32, 32, &intlfo},
 	{CTRLT_KNOB, 187, 71, 32, 32, &filter},
 	{CTRLT_KNOB, 224, 71, 32, 32, &peak}
@@ -24,10 +21,10 @@ int main(void) {
 	uint32_t c;
 	uint32_t touch_x, touch_y;
 	int32_t delta_x, delta_y;
-	float param = 0;
 	uint32_t keys_down;
 	uint32_t keys_held;
-	
+	int led;
+	void * param_ptr;
 	
 	int ang = 0;
 	int originy = 72;
@@ -35,31 +32,23 @@ int main(void) {
 	
 	
 	press = false;
-	draw = false;
+	plot_request = false;
 	
-	lfo=1.0f;
+	lfo_acc = 0xFFFFFFFF;
 	pitch=2.64f;
 	filter=0.99f;
-	ratelfo=0.00006f;
+	lfo_rate = 0;
 	intlfo=0.0f;
 	peak=0.0f;
 	track=0;
 	mode = PITCH;
 	octave=0;
+	i = 0;
 	//pan=128;
 	
 	init();
 	
-	for (c = 0; c < CONTROLS_COUNT; c++) {
-		if (controls[c].type == CTRLT_KNOB) {
-			oamRotateScale(&oamMain, c, ang + 46384, 256, 256);
-			oamSet(&oamMain, c, controls[c].x, controls[c].y, 0, 15, SpriteSize_32x32, SpriteColorFormat_Bmp,
-					gfx_knob, c, false, false, false, false, false);
-		} else if (controls[c].type == CTRLT_SWITCH) {
-			oamSet(&oamMain, c, controls[c].x, controls[c].y, 0, 15, SpriteSize_16x16, SpriteColorFormat_Bmp,
-					gfx_switch, -1, false, false, false, false, false);
-		}
-	}
+	//timerStart(0, TIMER_DIV_1, u16 ticks, null);
 	
 	SetYtrigger(0);
 	irqEnable(IRQ_VCOUNT);
@@ -74,7 +63,7 @@ int main(void) {
 		BG_PALETTE_SUB[0] = 0x2108;
 
 		dmaFillHalfWords(0x0000, bgGetGfxPtr(bg2s), 256*192*2);
-		draw = true;
+		plot_request = true;
 
 		scanKeys();
 		keys_down = keysDown();
@@ -92,12 +81,12 @@ int main(void) {
 			touchRead(&touch);
 			
 			// Debug
-			printf(	"\x1b[2;2HPitch:%4.2f LFO:%1.5f\n"
+			printf(	"\x1b[2;2HPitch:%4.2f LFO:%4X\n"
 					"  Int:%4.2f   Cutoff:%4.2f  \n"
 					"  Peak:%4.2f  Pitchmod:%4.2f\n"
 					"  Ang:%5i  Octave:%1.2f  \n"
 					"  Mode:%u     Track:%1.3f   \n",
-					pitch, ratelfo, intlfo, filter, peak, pitchmod, ang, pow(2,octave), (uint16_t)mode, track);
+					pitch, (unsigned int)(lfo_rate >> 16), intlfo, filter, peak, pitchmod, ang, pow(2,octave), (uint16_t)mode, track);
 			
 			touch_x = touch.px;
 			touch_y = touch.py;
@@ -105,21 +94,15 @@ int main(void) {
 			// Touch start, scan hitboxes
 			if (!touching) {
 				control_hit = CTRL_NONE;
-				//tswitch = false;
 				
 				for (c = 0; c < CONTROLS_COUNT; c++) {
 					if ((touch_x > controls[c].x) && (touch_x < controls[c].x + controls[c].w) &&
 					(touch_y > controls[c].y) && (touch_y < controls[c].y + controls[c].h))
 						control_hit = c;
 				}
-				originy = touch_y;	// For switch
-				/*if ((touch_x > 0) && (touch_x < 16) &&
-				(touch_y > 72) && (touch_y < 106)) {
-					originy = touch_y;
-					tswitch = true;
-				}*/
+				originy = touch_y;		// For switch
 				touching = true;
-				lfo = 1.0f;	// LFO reset
+				lfo_acc = 0xFFFFFFFF;	// Reset LFO
 			}
 			
 			if (control_hit > CTRL_MODE) {
@@ -132,13 +115,14 @@ int main(void) {
 					float val = 1.2f + (-ang / 13800.0f);
 					oamRotateScale(&oamMain, control_hit, ang + 16384, 256, 256);
 					
-					if (control_hit == CTRL_VCO) param = (float)(8 + (8 * val));				// Pitch
-					if (control_hit == CTRL_LFOR) param = (float)(0.001f + (0.001f * val));		// LFO rate
-					if (control_hit == CTRL_LFOI) param = (float)(0.5f + (0.5f * val));			// LFO intensity
-					if (control_hit == CTRL_VCFC) param = (float)(0.5f + (0.5f * val));			// Filter cutoff
-					if (control_hit == CTRL_VCFP) param = (float)(0.5f + (0.5f * val));			// Filter peak
+					param_ptr = controls[control_hit].param_ptr;
 					
-					*(float*)controls[control_hit].param_ptr = param;
+					if (control_hit == CTRL_VCO) *(float*)param_ptr = (float)(8 + (8 * val));			// Pitch
+					if (control_hit == CTRL_LFOR) *(uint32_t*)param_ptr = (uint32_t)((1 + val) * 512);	// LFO rate LUT index
+					if (control_hit == CTRL_LFOI) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// LFO intensity
+					if (control_hit == CTRL_VCFC) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter cutoff
+					if (control_hit == CTRL_VCFP) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter peak
+					
 					//pan = (float) (128+(128*atan2(deltaY, deltaX) / M_PI));
 				}
 				press = false;
@@ -147,12 +131,12 @@ int main(void) {
 				if ((delta_y < -6) && (mode < CUTOFF)) {
 					mode++;
 					originy = touch_y;
-					oamSet(&oamMain, 5, 3, 72 + (8 * mode), 0, 15, SpriteSize_16x16, SpriteColorFormat_Bmp,
+					oamSet(&oamMain, 0, 3, 72 + (8 * mode), 0, 15, SpriteSize_16x16, SpriteColorFormat_Bmp,
 							gfx_switch, -1, false, false, false, false, false);
 				} else if ((delta_y > 6) && (mode > STANDBY)) {
 					mode--;
 					originy = touch_y;
-					oamSet(&oamMain, 5, 3, 72 + (8 * mode), 0, 15, SpriteSize_16x16, SpriteColorFormat_Bmp,
+					oamSet(&oamMain, 0, 3, 72 + (8 * mode), 0, 15, SpriteSize_16x16, SpriteColorFormat_Bmp,
 							gfx_switch, -1, false, false, false, false, false);
 				}
 			} else {
@@ -165,6 +149,18 @@ int main(void) {
 				}
 			}
 		}
+		
+		// Update LED knob
+		if (mode == STANDBY) {
+			led = 0;
+		} else {
+			if (lfo_rate < 512) {
+				led = lfo_acc >> 29;
+			} else {
+				led = 3 + ((lfo_rate - 512) >> 7);
+			}
+		}
+		oamSetGfx(&oamMain, CTRL_LFOR, SpriteSize_32x32, SpriteColorFormat_Bmp, gfx_knob_led[led]);
 		
 		// Debug
 		if (keys_held & KEY_B) {

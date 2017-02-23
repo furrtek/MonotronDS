@@ -2,9 +2,13 @@
 #include <stdio.h>
 #include <maxmod9.h>
 
+#define CONTROLS_COUNT 6
+#define KNOB_SIZE 32
+
 enum ctrltype_enum {
 	CTRLT_SWITCH = 0,
-	CTRLT_KNOB
+	CTRLT_KNOB,
+	CTRLT_KNOB_LED
 };
 
 enum ctrl_enum {
@@ -32,9 +36,11 @@ typedef struct {
 	void * param_ptr;
 } control_t;
 
+extern const control_t controls[CONTROLS_COUNT];
 int bg2s;
-u16* gfx_knob;
-u16* gfx_switch;
+u16 * gfx_switch;
+u16 * gfx_knob;
+u16 * gfx_knob_led[8];
 bool press;
-bool draw;
+bool plot_request;
 enum mode_enum mode;
