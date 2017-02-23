@@ -1,5 +1,5 @@
-#include "init.h"
 #include "main.h"
+#include "init.h"
 #include "synth.h"
 
 const unsigned int * knob_led_ptr[8] = {

@@ -1,0 +1,1 @@
+void controls_update();

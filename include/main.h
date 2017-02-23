@@ -42,5 +42,8 @@ u16 * gfx_switch;
 u16 * gfx_knob;
 u16 * gfx_knob_led[8];
 bool press;
+enum ctrl_enum control_hit;
 bool plot_request;
 enum mode_enum mode;
+bool touching;
+int originy;

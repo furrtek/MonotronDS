@@ -15,5 +15,5 @@ float peak;
 float buf0, buf1;
 float track;
 int octave;
-int i;
+int plot_x;
 
