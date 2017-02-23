@@ -14,7 +14,4 @@ float intlfo;
 float peak;
 float buf0, buf1;
 float track;
-int mode;
 int octave;
-int pan;
-s16 previous, smpa, smpb, diff;
