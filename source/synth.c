@@ -4,7 +4,7 @@
 
 // Using floats on NDS sucks
 mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format) {
-	s16 *target = dest;
+	s16 * target = dest;
 	float flt = 0;
 	float pitchlfo = 1.0f;
 	float feedback;
