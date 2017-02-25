@@ -15,8 +15,7 @@ void controls_update() {
 	touchPosition touch;
 	uint32_t touch_x, touch_y;
 	int32_t delta_x, delta_y;
-	uint32_t keys_down;
-	uint32_t keys_held;
+	uint32_t keys_down, keys_held;
 	uint32_t c;
 	int ang = 0;
 	int led;
@@ -38,12 +37,15 @@ void controls_update() {
 		touchRead(&touch);
 		
 		// Debug
-		printf(	"\x1b[2;2HPitch:%4.2f LFO:%4X\n"
+		printf(	"\x1b[2;2HPitch:%3X  LFO:%3X\n"
 				"  Int:%4.2f   Cutoff:%4.2f  \n"
-				"  Peak:%4.2f  Pitchmod:%4.2f\n"
-				"  Ang:%5i  Octave:%1.2f  \n"
-				"  Mode:%u     Track:%1.3f   \n",
-				pitch, (unsigned int)(lfo_rate >> 16), intlfo, filter, peak, pitchmod, ang, pow(2, octave), (uint16_t)mode, track);
+				"  Peak:%4.2f  Ribbon:%u  \n"
+				"  Ang:%5i  Octave:%u  \n"
+				"  Mode:%u     Track:%1.3f   \n"
+				"  Meter:%u%%    ",
+				(unsigned int)pitch, (unsigned int)lfo_rate,
+				intlfo, filter, peak, (unsigned int)ribbon, ang, (unsigned int)octave,
+				(uint16_t)mode, track, (job_meter * 100) / 0x22AC);
 		
 		touch_x = touch.px;
 		touch_y = touch.py;
@@ -75,13 +77,11 @@ void controls_update() {
 				
 				param_ptr = controls[control_hit].param_ptr;
 				
-				if (control_hit == CTRL_VCO) *(float*)param_ptr = (float)(8 + (8 * val));			// Pitch
+				if (control_hit == CTRL_VCO) *(uint32_t*)param_ptr = (uint32_t)((1 + val) * 651);	// Pitch
 				if (control_hit == CTRL_LFOR) *(uint32_t*)param_ptr = (uint32_t)((1 + val) * 512);	// LFO rate LUT index
 				if (control_hit == CTRL_LFOI) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// LFO intensity
 				if (control_hit == CTRL_VCFC) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter cutoff
 				if (control_hit == CTRL_VCFP) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter peak
-				
-				//pan = (float) (128+(128*atan2(deltaY, deltaX) / M_PI));
 			}
 			press = false;
 		} else if (control_hit == CTRL_MODE) {
@@ -99,10 +99,10 @@ void controls_update() {
 						gfx_switch, -1, false, false, false, false, false);
 			}
 		} else {
-			// Ribbon
-			if ((touch_x > 12) && (touch_x < 246) && (touch_y > 138) && (touch_y < 170)) {
-				pitchmod = 1.0f + (float)(touch_x) / 174.0f;
-				track = pitchmod / 16.0f;
+			// Ribbon (234px)
+			if ((touch_x >= 12) && (touch_x < 246) && (touch_y > 138) && (touch_y < 170)) {
+				ribbon = touch_x - 12;
+				//track = ribbon / 16.0f;
 				press = true;
 			} else {
 				press = false;
@@ -128,7 +128,7 @@ void controls_update() {
 	// Test tone
 	if (keys_held & KEY_B) {
 		press = true;
-		pitchmod = 0.5f;
+		ribbon = 127;
 		pitch = 5.0f;
 		intlfo = 0.0f;
 		filter = 0.99f;

@@ -36,14 +36,22 @@ typedef struct {
 	void * param_ptr;
 } control_t;
 
+u16 job_meter;
+
+// Debug
+uint32_t meter_tick;
+uint32_t meter_acc;
+
 extern const control_t controls[CONTROLS_COUNT];
+uint32_t * vco_lut;
+uint32_t * lfo_lut;
 int bg2s;
 u16 * gfx_switch;
 u16 * gfx_knob;
 u16 * gfx_knob_led[8];
 bool press;
 enum ctrl_enum control_hit;
-bool plot_request;
+bool resfresh_flag;
 enum mode_enum mode;
 bool touching;
 int originy;

@@ -2,6 +2,10 @@
 #include "init.h"
 #include "synth.h"
 
+// LUTs
+extern uint32_t vco_bin;
+extern uint32_t lfo_bin;
+
 const unsigned int * knob_led_ptr[8] = {
 	knob_led0Bitmap,
 	knob_led1Bitmap,
@@ -17,6 +21,29 @@ void init() {
 	mm_ds_system mmsys;
 	mm_stream mmstream;
 	uint32_t c;
+	
+	vco_lut = &vco_bin;
+	lfo_lut = &lfo_bin;
+	
+	// Debug
+	meter_tick = 10;
+	meter_acc = 0;
+	
+	press = false;
+	resfresh_flag = false;
+	lfo_acc = 0xFFFFFFFF;
+	osc_acc = 0xFFFFFFFF;
+	pitch = 0;
+	filter = 0.99f;
+	lfo_rate = 0;
+	intlfo = 0.0f;
+	peak = 0.0f;
+	track = 0;
+	mode = STANDBY;
+	octave = 0;
+	plot_x = 0;
+	touching = false;
+	control_hit = CTRL_NONE;
 	
 	// Maxmod init
 	mmsys.mod_count = 0;
@@ -66,7 +93,6 @@ void init() {
 	dmaCopy(layoutBitmap, bgGetGfxPtr(bg2), 256*192*2);
 	
 	bg2s = bgInitSub(2, BgType_Bmp16, BgSize_B16_256x256, 1, 0);
-	dmaFillHalfWords(0xFFFF, bgGetGfxPtr(bg2s), 256*192*2);
 	bgSetPriority(bg2s, 3);
 	
 	for (c = 0; c < CONTROLS_COUNT; c++) {

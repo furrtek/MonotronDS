@@ -1,21 +1,16 @@
 #include "main.h"
 #include "synth.h"
-#include "lut_lfo.h"
 
 // Using floats on NDS sucks
 mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format) {
 	s16 * target = dest;
+	int len = length;
+	uint32_t osc_rate;
+	uint32_t lfo_v, osc_v;
 	float flt = 0;
 	float pitchlfo = 1.0f;
 	float feedback;
-	float osc_rate;
-	uint32_t lfo_v;
-	u16 * pixel_ptr;
 	bool plotting;
-	u16 * bg_ptr;
-	int len = length;
-	
-	bg_ptr = bgGetGfxPtr(bg2s);
 	
 	flt = filter + track;
 	
@@ -27,7 +22,8 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 	if (flt > 0.99f) flt = 0.99f;
 	
 	feedback = peak + peak / (1.0f - flt);
-	osc_rate = (pitch * pitchmod * pitchlfo * pow(2, octave));
+	osc_rate = (pitch + ribbon + (octave * 12 * 32));	// + pitchlfo
+	osc_v = vco_lut[osc_rate];
 
 	for ( ; len; len--) {
 		//intlfo=0: flt=filter*1
@@ -36,27 +32,27 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 		if (press && mode) {
 
 			// Low-pass filter with feedback
-			buf0 = buf0 + flt * ((osc * 80) - buf0 + feedback * (buf0 - buf1)) / 1.8f;
+			buf0 = buf0 + flt * ((((float)osc_acc / 4294967295.0) * 50000) - buf0 + feedback * (buf0 - buf1)) / 1.8f;
 			buf1 = buf1 + flt * (buf0 - buf1);
 			
-			*target++ = buf1;	// Mono output
+			*target++ = (s16)buf1 - 32767;	// Mono output
 			
-			// Debug: Plot waveform
-			if (plotting && (plot_x < 200)) {
-				pixel_ptr = bg_ptr + plot_x - (((u16)buf1 / 512) << 8) + (256 * 128) + 22;
-				*pixel_ptr = (u16)0xFFFF;	// White pixel
+			// Debug: Store part of waveform
+			if (plotting && (plot_x < 256)) {
+				waveform[plot_x] = ((u16)buf1 >> 10) << 8;
 				plot_x++;
 			}
 			
 			// Oscillator
-			osc -= osc_rate;
-			if (osc < 0.1f) {
-				if (plot_request == true) {
+			if (osc_acc < osc_v) {
+				if (resfresh_flag == true) {
 					plot_x = 0;
-					plot_request = false;
+					resfresh_flag = false;
 					plotting = true;
 				}
-				osc = 300.0f;
+				osc_acc = 0xFFFFFFFF;
+			} else {
+				osc_acc -= osc_v;
 			}
 		} else {
 			// STFU
@@ -64,7 +60,7 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 		}
 		
 		// LFO
-		lfo_v = lut_lfo[lfo_rate];
+		lfo_v = lfo_lut[lfo_rate];
 		if (lfo_acc < lfo_v)
 			lfo_acc = 0xFFFFFFFF;
 		else
