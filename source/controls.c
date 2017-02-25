@@ -11,13 +11,15 @@ const control_t controls[CONTROLS_COUNT] = {
 	{CTRLT_KNOB, 224, 71, 32, 32, &peak}
 };
 
+int ang = 0;
+
 void controls_update() {
 	touchPosition touch;
 	uint32_t touch_x, touch_y;
 	int32_t delta_x, delta_y;
 	uint32_t keys_down, keys_held;
 	uint32_t c;
-	int ang = 0;
+	uint32_t val;
 	int led;
 	void * param_ptr;
 
@@ -66,22 +68,26 @@ void controls_update() {
 		
 		if (control_hit > CTRL_MODE) {
 			// Knobs
+			
+			// Delta between knob center and touch position
 			delta_x = controls[control_hit].x + 16 - touch_x;
 			delta_y = controls[control_hit].y + 16 - touch_y;
 			
-			ang = (int)((-16384 * atan2(delta_y, delta_x) / M_PI) - 8192) & 0x7FFF;
+			// Deltas to angle
+			ang = (int)((32768 + 8192) - (-16384 * atan2(delta_y, delta_x) / M_PI)) & 0x7FFF;
 			
-			if ((ang > 3000) && (ang < 30000)) {
-				float val = 1.2f + (-ang / 13800.0f);
-				oamRotateScale(&oamMain, control_hit, ang + 16384, 256, 256);
+			if ((ang >= 3000) && (ang <= 30000)) {
+				// 3000~30000 to 0~1023
+				val = (uint32_t)((ang - 3000) / 26.393);
+				oamRotateScale(&oamMain, control_hit, 16384 - ang, 256, 256);
 				
 				param_ptr = controls[control_hit].param_ptr;
 				
-				if (control_hit == CTRL_VCO) *(uint32_t*)param_ptr = (uint32_t)((1 + val) * 651);	// Pitch
-				if (control_hit == CTRL_LFOR) *(uint32_t*)param_ptr = (uint32_t)((1 + val) * 512);	// LFO rate LUT index
-				if (control_hit == CTRL_LFOI) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// LFO intensity
-				if (control_hit == CTRL_VCFC) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter cutoff
-				if (control_hit == CTRL_VCFP) *(float*)param_ptr = (float)(0.5f + (0.5f * val));	// Filter peak
+				if (control_hit == CTRL_VCO) *(uint32_t*)param_ptr = (val * 1302) >> 10;	// Pitch
+				if (control_hit == CTRL_LFOR) *(uint32_t*)param_ptr = val;					// LFO rate LUT index
+				if (control_hit == CTRL_LFOI) *(float*)param_ptr = (float)(val / 1024.0);	// LFO intensity
+				if (control_hit == CTRL_VCFC) *(float*)param_ptr = (float)(val / 1024.0);	// Filter cutoff
+				if (control_hit == CTRL_VCFP) *(float*)param_ptr = (float)(val / 1024.0);	// Filter peak
 			}
 			press = false;
 		} else if (control_hit == CTRL_MODE) {
@@ -100,7 +106,7 @@ void controls_update() {
 			}
 		} else {
 			// Ribbon (234px)
-			if ((touch_x >= 12) && (touch_x < 246) && (touch_y > 138) && (touch_y < 170)) {
+			if ((touch_x >= 12) && (touch_x < 246) && (touch_y > 138) && (touch_y < 172)) {
 				ribbon = touch_x - 12;
 				//track = ribbon / 16.0f;
 				press = true;

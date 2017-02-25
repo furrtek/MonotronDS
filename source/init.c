@@ -34,10 +34,10 @@ void init() {
 	lfo_acc = 0xFFFFFFFF;
 	osc_acc = 0xFFFFFFFF;
 	pitch = 0;
-	filter = 0.99f;
+	filter = 0;
 	lfo_rate = 0;
-	intlfo = 0.0f;
-	peak = 0.0f;
+	intlfo = 0;
+	peak = 0;
 	track = 0;
 	mode = STANDBY;
 	octave = 0;
@@ -52,8 +52,8 @@ void init() {
 	mmsys.fifo_channel = FIFO_MAXMOD;
 	mmInit(&mmsys);
 	
-	mmstream.sampling_rate = 25000;				// 25khz
-	mmstream.buffer_length = 1200;				// 1200 samples
+	mmstream.sampling_rate = SAMPLE_RATE;
+	mmstream.buffer_length = 1800;				// 1800 samples (~45ms @40kHz)
 	mmstream.callback = on_stream_request;		// Set callback function
 	mmstream.format = MM_STREAM_16BIT_MONO;		// Mono 16-bit
 	mmstream.timer = MM_TIMER0;					// Use hardware timer 0

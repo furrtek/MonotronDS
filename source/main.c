@@ -20,12 +20,12 @@ int main(void) {
 	while (1) {
 		swiWaitForVBlank();
 		
-		// 33513982Hz
-		// Job meter, unit = 1.9096us (ovf ~8Hz)
+		// CPU meter, unit = 1.9096us (ovf @ ~8Hz)
 		TIMER3_CR = 0;
 		TIMER3_DATA = 0;
 		TIMER3_CR = TIMER_ENABLE | TIMER_DIV_64;
 		mmStreamUpdate();
+		// Average for 10 frames
 		if (meter_tick) {
 			meter_tick--;
 			meter_acc += TIMER3_DATA;
@@ -35,11 +35,11 @@ int main(void) {
 			meter_acc = 0;
 		}
 		
-		// Clear 96~160 (64)
+		// Clear 96~160 (64px)
 		dmaFillHalfWords(0x0000, bgGetGfxPtr(bg2s) + (256 * 96), 256 * 64 * 2);
 		resfresh_flag = true;
 		
-		// Debug
+		// Draw waveform
 		for (c = 0; c < 256; c++) {
 			pixel_ptr = bg_ptr + c + (256 * 159) - waveform[c];
 			*pixel_ptr = (u16)0xFFFF;	// White pixel

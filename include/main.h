@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <maxmod9.h>
 
+#define SAMPLE_RATE 40000
 #define CONTROLS_COUNT 6
 #define KNOB_SIZE 32
 

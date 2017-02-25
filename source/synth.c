@@ -22,17 +22,14 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 	if (flt > 0.99f) flt = 0.99f;
 	
 	feedback = peak + peak / (1.0f - flt);
-	osc_rate = (pitch + ribbon + (octave * 12 * 32));	// + pitchlfo
+	osc_rate = (pitch + ribbon + (octave * 12 * 32) + (pitchlfo * 64));		// Here be an OOB bug :)
 	osc_v = vco_lut[osc_rate];
 
 	for ( ; len; len--) {
-		//intlfo=0: flt=filter*1
-		//intlfo=1: flt=filter*lfo
-		
 		if (press && mode) {
-
+			
 			// Low-pass filter with feedback
-			buf0 = buf0 + flt * ((((float)osc_acc / 4294967295.0) * 50000) - buf0 + feedback * (buf0 - buf1)) / 1.8f;
+			buf0 = buf0 + flt * ((((float)osc_acc / 4294967295.0) * 45000) - buf0 + feedback * (buf0 - buf1)) / 1.8f;
 			buf1 = buf1 + flt * (buf0 - buf1);
 			
 			*target++ = (s16)buf1 - 32767;	// Mono output
@@ -59,7 +56,7 @@ mm_word on_stream_request(mm_word length, mm_addr dest, mm_stream_formats format
 			*target++ = 0;
 		}
 		
-		// LFO
+		// LFO always runs
 		lfo_v = lfo_lut[lfo_rate];
 		if (lfo_acc < lfo_v)
 			lfo_acc = 0xFFFFFFFF;

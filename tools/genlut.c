@@ -21,7 +21,7 @@
 #include <math.h>
 
 #define ALPHA 1.0594630943592952645618252949463
-#define SAMPLE_RATE 22050
+#define SAMPLE_RATE 44000
 
 int main(int argc, char *argv[]) {
 	FILE * file;
