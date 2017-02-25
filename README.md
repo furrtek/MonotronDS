@@ -7,6 +7,7 @@ Korg Monotron emulator for the Nintendo DS.
 
 * Improve sound accuracy
 * Adjust knob ranges
-* Clean up graphics
+* Adjust LFO knob gamma (looks bad on real DS)
+* Fix pitch mod
 
 **This program is not endorsed by KORG Inc.**
